@@ -1,25 +1,28 @@
-<!DOCTYPE html>
+<!doctype html>
 <html>
 <head>
+  <meta charset="utf-8">
   <title>Sign Up</title>
-  <style>
-    body { font-family: sans-serif; display: flex; height: 100vh; align-items: center; justify-content: center; }
-    form { background: #f2f2f2; padding: 2em; border-radius: 12px; box-shadow: 0 0 10px #ccc; width: 300px; text-align: center; }
-    input, select, button { width: 100%; margin-top: 0.5em; padding: 0.6em; border-radius: 8px; border: 1px solid #ccc; }
-    button { background: #008cff; color: white; border: none; cursor: pointer; }
-  </style>
+  <link rel="stylesheet" href="/styles.css">
 </head>
-<body>
-  <form action="/signup" method="post">
-    <h2>Create Account</h2>
-    <input type="text" name="username" placeholder="Username" required />
-    <input type="password" name="password" placeholder="Password" required />
-    <select name="role" required>
-      <option value="">Select Role</option>
-      <option value="user">User</option>
-      <option value="host">Host</option>
-    </select>
-    <button type="submit">Create Account</button>
-  </form>
+<body class="win12">
+  <div class="window auth-window">
+    <div class="titlebar"><div class="title">Create Account</div></div>
+    <div class="content">
+      <form action="/signup" method="post" class="auth-form">
+        <input name="username" placeholder="Choose a username" required />
+        <input name="password" type="password" placeholder="Choose a password" required />
+        <select name="role" required>
+          <option value="">Select role</option>
+          <option value="user">User</option>
+          <option value="host">Host</option>
+        </select>
+        <div style="display:flex;gap:8px;">
+          <button type="submit">Create</button>
+          <a class="btn ghost" href="/">Back</a>
+        </div>
+      </form>
+    </div>
+  </div>
 </body>
 </html>
