@@ -1,5 +1,5 @@
 {
-  "name": "ChickenChat",
+  "name": "auth-site",
   "version": "1.0.0",
   "main": "server.js",
   "type": "module",
@@ -8,6 +8,8 @@
   },
   "dependencies": {
     "express": "^4.19.2",
-    "express-session": "^1.17.3"
+    "express-session": "^1.17.3",
+    "body-parser": "^1.20.2",
+    "fs-extra": "^11.1.1"
   }
 }
