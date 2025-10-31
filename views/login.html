@@ -1,22 +1,24 @@
-<!DOCTYPE html>
+<!doctype html>
 <html>
 <head>
+  <meta charset="utf-8">
   <title>Login</title>
-  <style>
-    body { font-family: sans-serif; display: flex; height: 100vh; align-items: center; justify-content: center; }
-    form { background: #f2f2f2; padding: 2em; border-radius: 12px; box-shadow: 0 0 10px #ccc; width: 300px; text-align: center; }
-    input, button { width: 100%; margin-top: 0.5em; padding: 0.6em; border-radius: 8px; border: 1px solid #ccc; }
-    button { background: #008cff; color: white; border: none; cursor: pointer; }
-    a { display: block; margin-top: 1em; }
-  </style>
+  <link rel="stylesheet" href="/styles.css">
 </head>
-<body>
-  <form action="/login" method="post">
-    <h2>Login</h2>
-    <input type="text" name="username" placeholder="Username" required />
-    <input type="password" name="password" placeholder="Password" required />
-    <button type="submit">Login</button>
-    <a href="/signup">Create an account</a>
-  </form>
+<body class="win12">
+  <div class="window auth-window">
+    <div class="titlebar"><div class="title">Win12 Login</div></div>
+    <div class="content">
+      <form action="/login" method="post" class="auth-form">
+        <input name="username" placeholder="Username" required />
+        <input name="password" type="password" placeholder="Password" required />
+        <div style="display:flex;gap:8px;">
+          <button type="submit">Login</button>
+          <a class="btn ghost" href="/signup">Sign up</a>
+        </div>
+        <p style="margin-top:12px;font-size:12px;color:#666;">Host is pre-created: <strong>universalwebx</strong></p>
+      </form>
+    </div>
+  </div>
 </body>
 </html>
