@@ -1,0 +1,85 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Chat</title>
+<link rel="stylesheet" href="/styles.css">
+</head>
+<body class="win12">
+  <div class="window chat-window">
+    <div class="titlebar">
+      <div class="title">Win12 Chat</div>
+      <div class="actions">
+        <a href="/logout" class="btn tiny">Logout</a>
+      </div>
+    </div>
+    <div class="content">
+      <div id="messages" class="messages"></div>
+
+      <div style="margin-top:10px;">
+        <select id="type">
+          <option value="global">Global Chat</option>
+          <option value="dm">Direct Message</option>
+          <option value="group">Group Chat</option>
+        </select>
+        <input id="to" placeholder="Usernames (comma-separated for group)" style="width:200px" />
+      </div>
+      <div style="margin-top:6px; display:flex; gap:6px;">
+        <input id="input" placeholder="Type a message..." style="flex:1"/>
+        <button id="send">Send</button>
+      </div>
+    </div>
+  </div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script>
+const username = prompt("Enter your username again?") || "";
+const socket = io();
+socket.emit("identify", username);
+
+const messagesEl = document.getElementById("messages");
+const input = document.getElementById("input");
+const sendBtn = document.getElementById("send");
+const typeSel = document.getElementById("type");
+const toEl = document.getElementById("to");
+
+function addMessage(m){
+  const div = document.createElement("div");
+  div.className = "msg";
+  let target = m.type==="global"?"":m.type==="dm"?` (DM to ${m.to})`:` (Group: ${m.to.join(",")})`;
+  div.innerHTML = `<div class="meta"><strong>${m.username}</strong>${target} <span class="time">${new Date(m.time).toLocaleString()}</span></div><div class="text">${escapeHtml(m.content)}</div>`;
+  messagesEl.appendChild(div);
+  messagesEl.scrollTop = messagesEl.scrollHeight;
+}
+
+function escapeHtml(s){ return s.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+socket.on("history", msgs=>msgs.forEach(addMessage));
+socket.on("message", addMessage);
+
+sendBtn.onclick = ()=>{
+  const type = typeSel.value;
+  let to = toEl.value.trim();
+  let msg = {type, content:input.value};
+  if(type==="dm") msg.to=to;
+  if(type==="group") msg.to=to.split(",").map(u=>u.trim()).filter(u=>u.length>0);
+  socket.emit("message", msg);
+  input.value="";
+}
+
+// Cursor glow
+document.body.style.cursor="none";
+const glow = document.createElement("div");
+glow.style.position="fixed";
+glow.style.width="20px";
+glow.style.height="20px";
+glow.style.borderRadius="50%";
+glow.style.pointerEvents="none";
+glow.style.boxShadow="0 0 10px 4px white";
+document.body.appendChild(glow);
+document.addEventListener("mousemove", e=>{
+  glow.style.transform=`translate(${e.clientX-10}px,${e.clientY-10}px)`;
+});
+</script>
+</body>
+</html>
