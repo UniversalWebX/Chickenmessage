@@ -1,146 +1,67 @@
-:root {
-  --bg: #0d1117;
-  --accent: #0078d7;
-  --text: #f0f0f0;
-  --soft: rgba(255,255,255,0.08);
-  --glass: rgba(255,255,255,0.05);
-}
-
-body {
-  margin: 0;
-  font-family: "Segoe UI", sans-serif;
-  background: var(--bg);
-  color: var(--text);
+/* LOGIN PAGE FIX */
+.login-page {
   display: flex;
   justify-content: center;
   align-items: center;
   height: 100vh;
-  overflow: hidden;
-}
-
-/* Main window */
-.window {
-  width: 90%;
-  max-width: 1000px;
-  height: 90vh;
-  background: var(--glass);
-  backdrop-filter: blur(16px);
-  border-radius: 20px;
-  box-shadow: 0 0 40px rgba(0,0,0,0.5);
-  display: flex;
-  overflow: hidden;
-  border: 1px solid rgba(255,255,255,0.1);
-}
-
-/* Sidebar */
-.sidebar {
-  width: 220px;
-  background: rgba(255,255,255,0.03);
-  backdrop-filter: blur(20px);
-  padding: 16px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  border-right: 1px solid rgba(255,255,255,0.08);
-}
-
-.sidebar h3 {
-  margin: 0 0 10px 0;
-  font-size: 15px;
-  opacity: 0.8;
-}
-
-.sidebar button {
-  background: transparent;
-  color: var(--text);
-  border: 1px solid rgba(255,255,255,0.1);
-  border-radius: 10px;
-  padding: 10px;
-  text-align: left;
-  cursor: pointer;
-  transition: background 0.2s ease;
-}
-.sidebar button:hover,
-.sidebar button.active {
-  background: rgba(255,255,255,0.08);
-}
-
-/* Chat area */
-.chat {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  padding: 16px;
-}
-
-.chat-header {
-  font-size: 18px;
-  font-weight: 600;
-  margin-bottom: 10px;
-  border-bottom: 1px solid rgba(255,255,255,0.05);
-  padding-bottom: 6px;
-}
-
-.messages {
-  flex: 1;
-  overflow-y: auto;
-  background: rgba(0,0,0,0.2);
-  border-radius: 10px;
-  padding: 12px;
-}
-
-.msg {
-  margin-bottom: 10px;
-  padding: 8px 10px;
-  border-radius: 10px;
-  background: rgba(255,255,255,0.05);
-}
-.msg .meta {
-  font-size: 12px;
-  opacity: 0.6;
-}
-.msg .text {
-  font-size: 14px;
-  margin-top: 4px;
-  line-height: 1.3;
-}
-
-/* Input area */
-.chat-input {
-  display: flex;
-  gap: 10px;
-  margin-top: 10px;
-}
-.chat-input input {
-  flex: 1;
-  border: none;
-  border-radius: 10px;
-  padding: 10px;
-  background: var(--soft);
-  color: var(--text);
-  outline: none;
-}
-.chat-input button {
-  background: var(--accent);
+  background: radial-gradient(circle at 20% 20%, rgba(255,255,255,0.04), transparent 25%),
+              radial-gradient(circle at 80% 80%, rgba(255,255,255,0.02), transparent 25%),
+              #0d1117;
+  font-family: "Segoe UI", sans-serif;
   color: #fff;
+}
+
+.login-box {
+  background: rgba(255,255,255,0.05);
+  backdrop-filter: blur(20px);
+  padding: 40px 50px;
+  border-radius: 20px;
+  box-shadow: 0 10px 40px rgba(0,0,0,0.6);
+  display: flex;
+  flex-direction: column;
+  width: 360px;
+  text-align: center;
+}
+
+.login-box h1 {
+  margin-bottom: 25px;
+  font-size: 26px;
+  font-weight: 500;
+  letter-spacing: 0.3px;
+  background: linear-gradient(90deg,#60a5fa,#34d399);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.login-box input {
+  margin-bottom: 15px;
+  padding: 12px;
+  border-radius: 10px;
+  border: none;
+  outline: none;
+  background: rgba(255,255,255,0.1);
+  color: white;
+  font-size: 14px;
+}
+
+.login-box button {
+  padding: 12px;
   border: none;
   border-radius: 10px;
-  padding: 10px 16px;
+  background: linear-gradient(90deg,#60a5fa,#34d399);
+  color: #fff;
+  font-weight: 600;
   cursor: pointer;
-  font-weight: 500;
+  margin-top: 10px;
+  transition: opacity 0.2s ease;
 }
+.login-box button:hover { opacity: 0.9; }
 
-/* Announcement message */
-.msg.announcement {
-  background: rgba(0, 120, 215, 0.25);
-  border: 1px solid rgba(0, 120, 215, 0.4);
+.login-box a {
+  color: #7dd3fc;
+  margin-top: 10px;
+  text-decoration: none;
+  display: inline-block;
+  font-size: 14px;
 }
-
-/* Scrollbar */
-::-webkit-scrollbar {
-  width: 6px;
-}
-::-webkit-scrollbar-thumb {
-  background: rgba(255,255,255,0.2);
-  border-radius: 6px;
-}
+.login-box a:hover { text-decoration: underline; }
