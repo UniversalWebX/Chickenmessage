@@ -1,142 +1,198 @@
 <!doctype html>
 <html>
 <head>
-<meta charset="utf-8">
-<title>Chat</title>
-<link rel="stylesheet" href="/styles.css">
+  <meta charset="utf-8">
+  <title>Chat</title>
+  <link rel="stylesheet" href="/styles.css">
 </head>
 <body class="win12">
-<div class="window chat-window">
-  <div class="titlebar">
-    <div class="title">Chat</div>
-    <div class="actions"><a href="/logout" class="btn tiny">Logout</a></div>
-  </div>
-  <div class="content" style="display:flex;gap:12px;">
-    <div id="sidebar" class="sidebar">
-      <button class="tab active" data-type="global" data-to="">Global Chat</button>
-      <div id="dm-tabs"></div>
-      <div id="group-tabs"></div>
-      <div style="margin-top:10px;">
-        <input id="new-group" placeholder="Create group (user1,user2,...)" style="width:100%;"/>
-        <button id="create-group" style="width:100%;margin-top:4px;">Create Group</button>
+  <div class="window chat-window">
+    <div class="titlebar">
+      <div class="title">Chat</div>
+      <div class="actions"><a href="/logout" class="btn tiny">Logout</a></div>
+    </div>
+
+    <div class="content" style="display:flex; gap:12px;">
+      <div id="sidebar" class="sidebar">
+        <button class="tab active" data-type="global" data-to="">Global Chat</button>
+        <div id="dm-tabs"></div>
+        <div id="group-tabs"></div>
+
+        <div style="margin-top:10px;">
+          <input id="new-group" placeholder="Create group (user1,user2,...)" style="width:100%;" />
+          <button id="create-group" style="width:100%; margin-top:6px;">Create Group</button>
+        </div>
+
+        <div id="announcement-container" style="margin-top:12px; display:none;">
+          <input id="announcement-input" placeholder="Send announcement" />
+          <button id="send-announcement">Send</button>
+        </div>
       </div>
-      <div id="announcement-container" style="margin-top:12px; display:none;">
-        <input id="announcement-input" placeholder="Send announcement" />
-        <button id="send-announcement">Send</button>
+
+      <div style="flex:1; display:flex; flex-direction:column;">
+        <div id="messages" class="messages"></div>
+
+        <div style="margin-top:8px; display:flex; gap:8px;">
+          <select id="type" style="display:none;">
+            <option value="global">Global</option>
+            <option value="dm">DM</option>
+            <option value="group">Group</option>
+          </select>
+          <input id="input" placeholder="Type a message..." style="flex:1"/>
+          <button id="send">Send</button>
+        </div>
       </div>
     </div>
-    <div style="flex:1; display:flex; flex-direction:column;">
-      <div id="messages" class="messages"></div>
-      <div style="margin-top:6px; display:flex; gap:6px;">
-        <input id="input" placeholder="Type a message..." style="flex:1"/>
-        <button id="send">Send</button>
-      </div>
-    </div>
   </div>
-</div>
 
 <script src="/socket.io/socket.io.js"></script>
 <script>
-const username = prompt("Enter your username again") || "";
-const socket = io();
-socket.emit("identify", username);
+(async function(){
+  const meRes = await fetch('/me');
+  const me = await meRes.json();
+  if(!me.ok) return window.location = '/';
+  const username = me.username;
+  const role = me.role || "user";
 
-const messagesEl = document.getElementById("messages");
-const input = document.getElementById("input");
-const sendBtn = document.getElementById("send");
+  const socket = io();
+  socket.emit("iam", username);
 
-const sidebar = document.getElementById("sidebar");
-const dmTabs = document.getElementById("dm-tabs");
-const groupTabs = document.getElementById("group-tabs");
+  const messagesEl = document.getElementById("messages");
+  const input = document.getElementById("input");
+  const sendBtn = document.getElementById("send");
+  const dmTabs = document.getElementById("dm-tabs");
+  const groupTabs = document.getElementById("group-tabs");
+  const newGroup = document.getElementById("new-group");
+  const createGroupBtn = document.getElementById("create-group");
+  const announcementContainer = document.getElementById("announcement-container");
+  const announcementInput = document.getElementById("announcement-input");
+  const sendAnnouncementBtn = document.getElementById("send-announcement");
 
-const newGroup = document.getElementById("new-group");
-const createGroupBtn = document.getElementById("create-group");
-
-const announcementContainer = document.getElementById("announcement-container");
-const announcementInput = document.getElementById("announcement-input");
-const sendAnnouncementBtn = document.getElementById("send-announcement");
-
-let currentTab = {type:"global", to:""};
-let knownDMs = new Set();
-let knownGroups = new Set();
-
-if(username==="universalwebx") announcementContainer.style.display="block";
-
-function addMessage(m){
-  if(m.type!==currentTab.type) return;
-  if(m.type==="dm" && !(m.username===username||m.to===username) && username!=="universalwebx") return;
-  if(m.type==="group" && !m.to.includes(username) && username!=="universalwebx") return;
-
-  const div=document.createElement("div");
-  div.className="msg";
-  let target="";
-  if(m.type==="dm") target=` (DM ${m.username===username?"to "+m.to:"from "+m.username})`;
-  if(m.type==="group") target=` (Group: ${m.to.join(",")})`;
-  if(m.type==="announcement") target=" (Announcement)";
-  div.innerHTML=`<div class="meta"><strong>${m.username}</strong>${target} <span class="time">${new Date(m.time).toLocaleString()}</span></div><div class="text">${escapeHtml(m.content)}</div>`;
-  messagesEl.appendChild(div);
-  messagesEl.scrollTop=messagesEl.scrollHeight;
-}
-
-function escapeHtml(s){return s.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
-
-function setActiveTab(type,to){
-  currentTab={type,to};
-  document.querySelectorAll(".tab").forEach(b=>b.classList.remove("active"));
-  const btn=document.querySelector(`.tab[data-type='${type}'][data-to='${to}']`);
-  if(btn) btn.classList.add("active");
-  messagesEl.innerHTML="";
-}
-
-function addTab(type,to,label){
-  let container = type==="dm"?dmTabs:groupTabs;
-  if(container.querySelector(`.tab[data-type='${type}'][data-to='${to}']`)) return;
-  const btn=document.createElement("button");
-  btn.className="tab";
-  btn.dataset.type=type;
-  btn.dataset.to=to;
-  btn.textContent=label;
-  btn.onclick=()=>setActiveTab(type,to);
-  container.appendChild(btn);
-}
-
-socket.on("history", msgs=>msgs.forEach(addMessage));
-socket.on("message", m=>{
-  if(m.type==="dm" && m.username!==username && m.to!==username && username!=="universalwebx") return;
-  if(m.type==="group" && !m.to.includes(username) && username!=="universalwebx") return;
-
-  if(m.type==="dm") addTab("dm", m.username===username?m.to:m.username, m.username===username?m.to:m.username);
-  if(m.type==="group") addTab("group", m.to.join(","), m.to.join(","));
-  addMessage(m);
-});
-
-sendBtn.onclick=()=>{
-  let msg={type:currentTab.type, content:input.value};
-  if(currentTab.type==="dm") msg.to=currentTab.to;
-  if(currentTab.type==="group") msg.to=currentTab.to.split(",");
-  socket.emit("message", msg);
-  input.value="";
-};
-
-createGroupBtn.onclick=()=>{
-  const names=newGroup.value.split(",").map(u=>u.trim()).filter(u=>u.length>0);
-  if(names.length>0){
-    names.push(username);
-    addTab("group", names.join(","), names.join(","));
-    setActiveTab("group", names.join(","));
-    newGroup.value="";
+  if(username === "universalwebx" || role === "host" || role === "admin") {
+    announcementContainer.style.display = "block";
   }
-};
 
-if(username==="universalwebx"){
-  sendAnnouncementBtn.onclick=()=>{
-    const content=announcementInput.value.trim();
-    if(content){
-      socket.emit("message",{type:"announcement",content});
-      announcementInput.value="";
+  let currentTab = { type: "global", to: "" };
+
+  function escapeHtml(s){ return (s||"").replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+  function addMessage(m){
+    // only show messages for current tab (client will also receive extraneous messages)
+    if (m.type === "global" || m.type === "announcement") {
+      if (currentTab.type !== "global") return;
     }
+    if (m.type === "dm") {
+      const other = (m.username === username) ? m.to : m.username;
+      if (!(currentTab.type === "dm" && currentTab.to === other)) return;
+    }
+    if (m.type === "group") {
+      const groupId = Array.isArray(m.to) ? m.to.join(",") : m.to;
+      if (!(currentTab.type === "group" && currentTab.to === groupId)) return;
+    }
+
+    const div = document.createElement("div");
+    div.className = "msg" + (m.type === "announcement" ? " announcement" : "");
+    let meta = `<strong>${escapeHtml(m.username)}</strong>`;
+    if (m.type === "dm") meta += ` <span class="time"> (DM ${m.username===username ? "to "+escapeHtml(m.to) : "from "+escapeHtml(m.username)})</span>`;
+    if (m.type === "group") meta += ` <span class="time"> (Group: ${escapeHtml((m.to||[]).join(","))})</span>`;
+    if (m.type === "announcement") meta += ` <span class="time"> (Announcement)</span>`;
+    meta += ` <span class="time"> ${new Date(m.time).toLocaleString()}</span>`;
+
+    div.innerHTML = `<div class="meta">${meta}</div><div class="text">${escapeHtml(m.content)}</div>`;
+    messagesEl.appendChild(div);
+    messagesEl.scrollTop = messagesEl.scrollHeight;
+  }
+
+  socket.on("history", msgs => {
+    // For initial history, client may receive all messages; filter down to current tab and also create tabs for DMs/groups
+    msgs.forEach(m => {
+      if (m.type === "dm") {
+        const other = (m.username === username) ? m.to : m.username;
+        addTab("dm", other, other);
+      }
+      if (m.type === "group") {
+        const id = Array.isArray(m.to) ? m.to.join(",") : m.to;
+        addTab("group", id, id);
+      }
+    });
+    // show only relevant messages for current tab (server also emitted filtered history)
+    msgs.forEach(addMessage);
+  });
+
+  socket.on("message", m => {
+    // create tabs when new DM/group appears
+    if (m.type === "dm") {
+      const other = (m.username === username) ? m.to : m.username;
+      addTab("dm", other, other);
+    }
+    if (m.type === "group") {
+      const id = Array.isArray(m.to) ? m.to.join(",") : m.to;
+      addTab("group", id, id);
+    }
+    addMessage(m);
+  });
+
+  function setActiveTab(type, to) {
+    currentTab = { type, to };
+    document.querySelectorAll(".tab").forEach(b => b.classList.remove("active"));
+    const btn = document.querySelector(`.tab[data-type='${type}'][data-to='${to}']`);
+    if (btn) btn.classList.add("active");
+    // clear messages view and then ask server for relevant history? we rely on socket 'history' + 'message' updates
+    messagesEl.innerHTML = "";
+    // render from cached history? For simplicity we rely on server sending initial history and live messages
+  }
+
+  function addTab(type, to, label) {
+    const container = type === "dm" ? dmTabs : groupTabs;
+    if (container.querySelector(`.tab[data-type='${type}'][data-to='${to}']`)) return;
+    const btn = document.createElement("button");
+    btn.className = "tab";
+    btn.dataset.type = type;
+    btn.dataset.to = to;
+    btn.textContent = label;
+    btn.onclick = () => {
+      setActiveTab(type, to);
+    };
+    container.appendChild(btn);
+  }
+
+  // Sidebar Global tab already exists - keep active
+  document.querySelector(".tab[data-type='global']").onclick = () => setActiveTab("global","");
+
+  sendBtn.onclick = () => {
+    const text = input.value.trim();
+    if (!text) return;
+    let msg = { type: currentTab.type, content: text };
+    if (currentTab.type === "dm") msg.to = currentTab.to;
+    if (currentTab.type === "group") msg.to = currentTab.to.split(",").map(u=>u.trim()).filter(Boolean);
+    if (currentTab.type === "global") {} // nothing extra
+    socket.emit("message", msg);
+    input.value = "";
   };
-}
+
+  createGroupBtn.onclick = () => {
+    const names = newGroup.value.split(",").map(u => u.trim()).filter(Boolean);
+    if (names.length === 0) return;
+    // ensure current user is included
+    if (!names.includes(username)) names.push(username);
+    const id = names.join(",");
+    addTab("group", id, id);
+    setActiveTab("group", id);
+    newGroup.value = "";
+  };
+
+  sendAnnouncementBtn.onclick = async () => {
+    const content = announcementInput.value.trim();
+    if (!content) return;
+    const res = await fetch("/api/announce", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ content })
+    });
+    announcementInput.value = "";
+  };
+
+})();
 </script>
 </body>
 </html>
