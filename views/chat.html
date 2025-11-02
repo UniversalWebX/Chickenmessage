@@ -6,80 +6,137 @@
 <link rel="stylesheet" href="/styles.css">
 </head>
 <body class="win12">
-  <div class="window chat-window">
-    <div class="titlebar">
-      <div class="title">Win12 Chat</div>
-      <div class="actions">
-        <a href="/logout" class="btn tiny">Logout</a>
+<div class="window chat-window">
+  <div class="titlebar">
+    <div class="title">Chat</div>
+    <div class="actions"><a href="/logout" class="btn tiny">Logout</a></div>
+  </div>
+  <div class="content" style="display:flex;gap:12px;">
+    <div id="sidebar" class="sidebar">
+      <button class="tab active" data-type="global" data-to="">Global Chat</button>
+      <div id="dm-tabs"></div>
+      <div id="group-tabs"></div>
+      <div style="margin-top:10px;">
+        <input id="new-group" placeholder="Create group (user1,user2,...)" style="width:100%;"/>
+        <button id="create-group" style="width:100%;margin-top:4px;">Create Group</button>
+      </div>
+      <div id="announcement-container" style="margin-top:12px; display:none;">
+        <input id="announcement-input" placeholder="Send announcement" />
+        <button id="send-announcement">Send</button>
       </div>
     </div>
-    <div class="content">
+    <div style="flex:1; display:flex; flex-direction:column;">
       <div id="messages" class="messages"></div>
-
-      <div style="margin-top:10px;">
-        <select id="type">
-          <option value="global">Global Chat</option>
-          <option value="dm">Direct Message</option>
-          <option value="group">Group Chat</option>
-        </select>
-        <input id="to" placeholder="Usernames (comma-separated for group)" style="width:200px" />
-      </div>
       <div style="margin-top:6px; display:flex; gap:6px;">
         <input id="input" placeholder="Type a message..." style="flex:1"/>
         <button id="send">Send</button>
       </div>
     </div>
   </div>
+</div>
 
 <script src="/socket.io/socket.io.js"></script>
 <script>
-const username = prompt("Enter your username again?") || "";
+const username = prompt("Enter your username again") || "";
 const socket = io();
 socket.emit("identify", username);
 
 const messagesEl = document.getElementById("messages");
 const input = document.getElementById("input");
 const sendBtn = document.getElementById("send");
-const typeSel = document.getElementById("type");
-const toEl = document.getElementById("to");
+
+const sidebar = document.getElementById("sidebar");
+const dmTabs = document.getElementById("dm-tabs");
+const groupTabs = document.getElementById("group-tabs");
+
+const newGroup = document.getElementById("new-group");
+const createGroupBtn = document.getElementById("create-group");
+
+const announcementContainer = document.getElementById("announcement-container");
+const announcementInput = document.getElementById("announcement-input");
+const sendAnnouncementBtn = document.getElementById("send-announcement");
+
+let currentTab = {type:"global", to:""};
+let knownDMs = new Set();
+let knownGroups = new Set();
+
+if(username==="universalwebx") announcementContainer.style.display="block";
 
 function addMessage(m){
-  const div = document.createElement("div");
-  div.className = "msg";
-  let target = m.type==="global"?"":m.type==="dm"?` (DM to ${m.to})`:` (Group: ${m.to.join(",")})`;
-  div.innerHTML = `<div class="meta"><strong>${m.username}</strong>${target} <span class="time">${new Date(m.time).toLocaleString()}</span></div><div class="text">${escapeHtml(m.content)}</div>`;
+  if(m.type!==currentTab.type) return;
+  if(m.type==="dm" && !(m.username===username||m.to===username) && username!=="universalwebx") return;
+  if(m.type==="group" && !m.to.includes(username) && username!=="universalwebx") return;
+
+  const div=document.createElement("div");
+  div.className="msg";
+  let target="";
+  if(m.type==="dm") target=` (DM ${m.username===username?"to "+m.to:"from "+m.username})`;
+  if(m.type==="group") target=` (Group: ${m.to.join(",")})`;
+  if(m.type==="announcement") target=" (Announcement)";
+  div.innerHTML=`<div class="meta"><strong>${m.username}</strong>${target} <span class="time">${new Date(m.time).toLocaleString()}</span></div><div class="text">${escapeHtml(m.content)}</div>`;
   messagesEl.appendChild(div);
-  messagesEl.scrollTop = messagesEl.scrollHeight;
+  messagesEl.scrollTop=messagesEl.scrollHeight;
 }
 
-function escapeHtml(s){ return s.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function escapeHtml(s){return s.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+
+function setActiveTab(type,to){
+  currentTab={type,to};
+  document.querySelectorAll(".tab").forEach(b=>b.classList.remove("active"));
+  const btn=document.querySelector(`.tab[data-type='${type}'][data-to='${to}']`);
+  if(btn) btn.classList.add("active");
+  messagesEl.innerHTML="";
+}
+
+function addTab(type,to,label){
+  let container = type==="dm"?dmTabs:groupTabs;
+  if(container.querySelector(`.tab[data-type='${type}'][data-to='${to}']`)) return;
+  const btn=document.createElement("button");
+  btn.className="tab";
+  btn.dataset.type=type;
+  btn.dataset.to=to;
+  btn.textContent=label;
+  btn.onclick=()=>setActiveTab(type,to);
+  container.appendChild(btn);
+}
 
 socket.on("history", msgs=>msgs.forEach(addMessage));
-socket.on("message", addMessage);
+socket.on("message", m=>{
+  if(m.type==="dm" && m.username!==username && m.to!==username && username!=="universalwebx") return;
+  if(m.type==="group" && !m.to.includes(username) && username!=="universalwebx") return;
 
-sendBtn.onclick = ()=>{
-  const type = typeSel.value;
-  let to = toEl.value.trim();
-  let msg = {type, content:input.value};
-  if(type==="dm") msg.to=to;
-  if(type==="group") msg.to=to.split(",").map(u=>u.trim()).filter(u=>u.length>0);
+  if(m.type==="dm") addTab("dm", m.username===username?m.to:m.username, m.username===username?m.to:m.username);
+  if(m.type==="group") addTab("group", m.to.join(","), m.to.join(","));
+  addMessage(m);
+});
+
+sendBtn.onclick=()=>{
+  let msg={type:currentTab.type, content:input.value};
+  if(currentTab.type==="dm") msg.to=currentTab.to;
+  if(currentTab.type==="group") msg.to=currentTab.to.split(",");
   socket.emit("message", msg);
   input.value="";
-}
+};
 
-// Cursor glow
-document.body.style.cursor="none";
-const glow = document.createElement("div");
-glow.style.position="fixed";
-glow.style.width="20px";
-glow.style.height="20px";
-glow.style.borderRadius="50%";
-glow.style.pointerEvents="none";
-glow.style.boxShadow="0 0 10px 4px white";
-document.body.appendChild(glow);
-document.addEventListener("mousemove", e=>{
-  glow.style.transform=`translate(${e.clientX-10}px,${e.clientY-10}px)`;
-});
+createGroupBtn.onclick=()=>{
+  const names=newGroup.value.split(",").map(u=>u.trim()).filter(u=>u.length>0);
+  if(names.length>0){
+    names.push(username);
+    addTab("group", names.join(","), names.join(","));
+    setActiveTab("group", names.join(","));
+    newGroup.value="";
+  }
+};
+
+if(username==="universalwebx"){
+  sendAnnouncementBtn.onclick=()=>{
+    const content=announcementInput.value.trim();
+    if(content){
+      socket.emit("message",{type:"announcement",content});
+      announcementInput.value="";
+    }
+  };
+}
 </script>
 </body>
 </html>
