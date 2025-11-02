@@ -1,23 +1,121 @@
-<!doctype html>
-<html>
+<!DOCTYPE html>
+<html lang="en">
 <head>
-<meta charset="utf-8">
-<title>Login</title>
-<link rel="stylesheet" href="/styles.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sign In • PxiChat</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      font-family: 'Segoe UI', Roboto, sans-serif;
+    }
+
+    body {
+      margin: 0;
+      height: 100vh;
+      background: radial-gradient(circle at top left, #1e1e1e, #121212);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+    }
+
+    .login-container {
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      backdrop-filter: blur(18px);
+      border-radius: 20px;
+      padding: 40px;
+      width: 340px;
+      box-shadow: 0 0 25px rgba(0, 0, 0, 0.5);
+      transition: all 0.3s ease;
+    }
+
+    .login-container:hover {
+      border-color: rgba(255, 255, 255, 0.25);
+    }
+
+    h2 {
+      text-align: center;
+      margin-bottom: 30px;
+      color: #fff;
+      font-weight: 500;
+      font-size: 24px;
+    }
+
+    label {
+      display: block;
+      font-size: 14px;
+      margin-bottom: 8px;
+      color: #ccc;
+    }
+
+    input {
+      width: 100%;
+      padding: 12px;
+      margin-bottom: 20px;
+      border: none;
+      border-radius: 10px;
+      background: rgba(255, 255, 255, 0.1);
+      color: #fff;
+      font-size: 15px;
+      outline: none;
+      transition: background 0.2s ease;
+    }
+
+    input:focus {
+      background: rgba(255, 255, 255, 0.2);
+    }
+
+    button {
+      width: 100%;
+      padding: 12px;
+      border: none;
+      border-radius: 10px;
+      font-size: 15px;
+      cursor: pointer;
+      color: #fff;
+      background: linear-gradient(90deg, #0078d7, #00b7ff);
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    button:hover {
+      transform: scale(1.03);
+      box-shadow: 0 0 10px rgba(0, 183, 255, 0.6);
+    }
+
+    p {
+      text-align: center;
+      margin-top: 20px;
+      font-size: 14px;
+      color: #bbb;
+    }
+
+    a {
+      color: #00b7ff;
+      text-decoration: none;
+      font-weight: 500;
+    }
+
+    a:hover {
+      text-decoration: underline;
+    }
+  </style>
 </head>
-<body class="win12">
-<div class="window auth-window">
-  <div class="titlebar"><div class="title">Login</div></div>
-  <div class="content">
-    <form action="/login" method="post" class="auth-form">
-      <input name="username" placeholder="Username" required />
-      <input name="password" type="password" placeholder="Password" required />
-      <div style="display:flex;gap:8px;">
-        <button type="submit">Login</button>
-        <a class="btn ghost" href="/signup">Sign up</a>
-      </div>
+<body>
+  <div class="login-container">
+    <h2>PxiChat Login</h2>
+    <form id="loginForm" action="/login" method="POST">
+      <label for="username">Username</label>
+      <input type="text" id="username" name="username" required>
+
+      <label for="password">Password</label>
+      <input type="password" id="password" name="password" required>
+
+      <button type="submit">Sign In</button>
     </form>
+
+    <p>Don’t have an account? <a href="/signup">Sign up</a></p>
   </div>
-</div>
 </body>
 </html>
