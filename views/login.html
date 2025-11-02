@@ -6,21 +6,18 @@
 <link rel="stylesheet" href="/styles.css">
 </head>
 <body class="win12">
-  <div class="window auth-window">
-    <div class="titlebar"><div class="title">Win12 Login</div></div>
-    <div class="content">
-      <form action="/login" method="post" class="auth-form">
-        <input name="username" placeholder="Username" required />
-        <input name="password" type="password" placeholder="Password" required />
-        <div style="display:flex;gap:8px;">
-          <button type="submit">Login</button>
-          <a class="btn ghost" href="/signup">Sign up</a>
-        </div>
-        <p style="margin-top:12px;font-size:12px;color:#666;">
-          Host account exists: <strong>universalwebx</strong>
-        </p>
-      </form>
-    </div>
+<div class="window auth-window">
+  <div class="titlebar"><div class="title">Login</div></div>
+  <div class="content">
+    <form action="/login" method="post" class="auth-form">
+      <input name="username" placeholder="Username" required />
+      <input name="password" type="password" placeholder="Password" required />
+      <div style="display:flex;gap:8px;">
+        <button type="submit">Login</button>
+        <a class="btn ghost" href="/signup">Sign up</a>
+      </div>
+    </form>
   </div>
+</div>
 </body>
 </html>
