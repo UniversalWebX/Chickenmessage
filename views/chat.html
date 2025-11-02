@@ -67,6 +67,19 @@ sendBtn.onclick = ()=>{
   input.value="";
 }
 
+// Cursor glow
+document.body.style.cursor="none";
+const glow = document.createElement("div");
+glow.style.position="fixed";
+glow.style.width="20px";
+glow.style.height="20px";
+glow.style.borderRadius="50%";
+glow.style.pointerEvents="none";
+glow.style.boxShadow="0 0 10px 4px white";
+document.body.appendChild(glow);
+document.addEventListener("mousemove", e=>{
+  glow.style.transform=`translate(${e.clientX-10}px,${e.clientY-10}px)`;
+});
 </script>
 </body>
 </html>
