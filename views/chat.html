@@ -1,9 +1,17 @@
 <!doctype html>
 <html>
-<head><meta charset="utf-8"><title>ChickenMessenger — Chat</title><link rel="stylesheet" href="/styles.css"><script src="/socket.io/socket.io.js"></script></head>
+<head>
+<meta charset="utf-8">
+<title>ChickenMessenger — Chat</title>
+<link rel="stylesheet" href="/styles.css">
+<script src="/socket.io/socket.io.js"></script>
+</head>
 <body>
   <div class="window">
-    <div class="titlebar"><div class="title">ChickenMessenger</div><div><a href="/logout" class="btn btn-logout">Logout</a></div></div>
+    <div class="titlebar">
+      <div class="title">ChickenMessenger</div>
+      <div><a href="/logout" class="btn btn-logout">Logout</a></div>
+    </div>
     <div class="content">
       <div class="sidebar" id="sidebar">
         <button class="tab active" data-type="global" data-to="">Global</button>
@@ -27,30 +35,137 @@
       </div>
     </div>
   </div>
+
   <div id="adminOverlay" class="admin-overlay" tabindex="0">...</div>
+
 <script>
-(async ()=>{
+(async () => {
   const meRes = await fetch('/me');
   const me = await meRes.json();
-  if(!me.ok) return window.location = '/';
+  if (!me.ok) return window.location = '/';
   const username = me.username;
   const role = me.role || 'user';
-  if(role==='host' || role==='admin') document.getElementById('announcement-area').style.display='block';
+  if (role === 'host' || role === 'admin') document.getElementById('announcement-area').style.display = 'block';
+
   const socket = io();
   socket.emit('register', username);
+
   const messagesEl = document.getElementById('messages');
   const input = document.getElementById('input');
   const sendBtn = document.getElementById('send');
   const dmTabs = document.getElementById('dm-tabs');
   const groupTabs = document.getElementById('group-tabs');
-  let currentTab = { type:'global', to:'' };
-  function esc(s){ return (s||'').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
-  function addTab(type,to,label){ const container = (type==='dm') ? dmTabs : groupTabs; if(container.querySelector(`.tab[data-type="${type}"][data-to="${to}"]`)) return; const btn = document.createElement('button'); btn.className='tab'; btn.dataset.type = type; btn.dataset.to = to; btn.textContent = label; btn.onclick = ()=> { document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active')); btn.classList.add('active'); currentTab = { type, to }; messagesEl.innerHTML = ''; }; container.appendChild(btn); }
-  function renderMessage(m){ if(m.type === 'global' || m.type === 'announcement'){ if(!(currentTab.type==='global')) return; } else if(m.type === 'dm'){ const other = (m.username===username) ? m.to : m.username; if(!(currentTab.type==='dm' && currentTab.to===other)) return; } else if(m.type === 'group'){ const id = Array.isArray(m.to)? m.to.join(',') : m.to; if(!(currentTab.type==='group' && currentTab.to===id)) return; } const el = document.createElement('div'); el.className = 'msg' + (m.type==='announcement' ? ' announcement' : ''); let meta = `<div class="meta"><strong>${esc(m.username)}</strong>`; if(m.type==='dm'){ meta += ` <span>(DM ${m.username===username ? 'to '+esc(m.to) : 'from '+esc(m.username)})</span>`; } if(m.type==='group'){ meta += ` <span>(Group: ${esc((m.to||[]).join(','))})</span>`; } if(m.type==='announcement'){ meta += ` <span>(Announcement)</span>`; } meta += ` <span style="float:right;opacity:.6;font-size:12px">${new Date(m.time).toLocaleString()}</span></div>`; el.innerHTML = `${meta}<div class="text">${esc(m.content || m.text || '')}</div>`; messagesEl.appendChild(el); messagesEl.scrollTop = messagesEl.scrollHeight; }
-  socket.on('history', msgs => { msgs.forEach(m=>{ if(m.type==='dm'){ const other = (m.username===username) ? m.to : m.username; addTab('dm', other, other); } if(m.type==='group'){ const id = Array.isArray(m.to)? m.to.join(','): m.to; addTab('group', id, id); } }); msgs.forEach(renderMessage); });
-  socket.on('message', m=>{ if(m.type==='dm'){ const other = (m.username===username) ? m.to : m.username; addTab('dm', other, other); } if(m.type==='group'){ const id = Array.isArray(m.to)? m.to.join(','): m.to; addTab('group', id, id); } renderMessage(m); });
-  sendBtn.onclick = ()=>{ const text = input.value.trim(); if(!text) return; const payload = { type: currentTab.type, content: text }; if(currentTab.type==='dm') payload.to = currentTab.to; if(currentTab.type==='group') payload.to = currentTab.to.split(',').map(u=>u.trim()).filter(Boolean); if(currentTab.type==='global') payload.content = text; socket.emit('send', payload); input.value=''; };
-  document.getElementById('create-group').onclick = ()=>{ const s = document.getElementById('new-group').value.trim(); if(!s) return; const arr = s.split(',').map(x=>x.trim()).filter(Boolean); if(!arr.includes(username)) arr.push(username); const id = arr.join(','); addTab('group', id, id); document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active')); const btn = document.querySelector(`.tab[data-type="group"][data-to="${id}"]`); if(btn) btn.classList.add('active'); currentTab = { type:'group', to:id }; messagesEl.innerHTML=''; document.getElementById('new-group').value=''; };
-  document.getElementById('send-announcement').onclick = async ()=>{ const t = document.getElementById('announcement-input').value.trim(); if(!t) return; await fetch('/api/announce', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ content: t })}); document.getElementById('announcement-input').value=''; };
-  const overlay = document.getElementById('adminOverlay'); const closeAdmin = document.getElementById('closeAdmin'); const isHostLike = (role==='host' || role==='admin'); if(isHostLike) overlay.style.display='block'; overlay.style.display = 'none'; function toggleOverlay(){ overlay.style.display = overlay.style.display==='none'? 'block' : 'none'; overlay.focus(); } document.addEventListener('keydown', (e)=> { if(e.key==='\\') toggleOverlay(); }); closeAdmin.onclick = ()=> overlay.style.display='none'; let dragging=false, offsetX=0, offsetY=0; overlay.addEventListener('mousedown', (e)=>{ if(e.target.tagName.toLowerCase()==='input' || e.target.tagName.toLowerCase()==='button') return; dragging=true; const rect = overlay.getBoundingClientRect(); offsetX = e.clientX - rect.left; offsetY = e.clientY - rect.top; overlay.style.transition='none'; }); document.addEventListener('mouseup', ()=> dragging=false); document.addEventListener('mousemove', (e)=>{ if(!dragging) return; overlay.style.left = (e.clientX - offsetX) + 'px'; overlay.style.top = (e.clientY - offsetY) + 'px'; overlay.style.position='fixed'; }); const post = async (url, body)=> fetch(url, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body)}).then(r=>r.json()); document.getElementById('banBtn').onclick = async ()=>{ const user = document.getElementById('banName').value.trim(); const mins = parseInt(document.getElementById('banMin').value) || null; await post('/api/ban', { username:user, durationMinutes: mins }); alert('Banned (if user existed).'); }; document.getElementById('unbanBtn').onclick = async ()=>{ const user = document.getElementById('banName').value.trim(); await post('/api/unban', { username: user }); alert('Unbanned.'); }; document.getElementById('ipBanBtn').onclick = async ()=>{ const ip = document.getElementById('ipBan').value.trim(); const mins = parseInt(document.getElementById('ipMin').value) || null; await post('/api/ipban', { ip, durationMinutes: mins }); alert('IP banned.'); }; document.getElementById('ipUnbanBtn').onclick = async ()=>{ const ip = document.getElementById('ipBan').value.trim(); await post('/api/unipban', { ip }); alert('IP unbanned.'); }; document.getElementById('grantBtn').onclick = async ()=>{ const u = document.getElementById('grantUser').value.trim(); await post('/api/giveadmin', { username: u }); alert('Given admin.'); }; document.getElementById('removeBtn').onclick = async ()=>{ const u = document.getElementById('grantUser').value.trim(); await post('/api/removeadmin', { username: u }); alert('Removed admin.'); }; document.getElementById('lockBtn').onclick = async ()=>{ await post('/api/lock'); alert('Site locked'); }; document.getElementById('unlockBtn').onclick = async ()=>{ await post('/api/unlock'); alert('Site unlocked'); }; })();
+  let currentTab = { type: 'global', to: '' };
+
+  function esc(s) {
+    return (s || '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  }
+
+  function addTab(type, to, label) {
+    const container = (type === 'dm') ? dmTabs : groupTabs;
+    if (container.querySelector(`.tab[data-type="${type}"][data-to="${to}"]`)) return;
+    const btn = document.createElement('button');
+    btn.className = 'tab';
+    btn.dataset.type = type;
+    btn.dataset.to = to;
+    btn.textContent = label;
+    btn.onclick = () => {
+      document.querySelectorAll('.tab').forEach(x => x.classList.remove('active'));
+      btn.classList.add('active');
+      currentTab = { type, to };
+      messagesEl.innerHTML = '';
+    };
+    container.appendChild(btn);
+  }
+
+  function renderMessage(m) {
+    if (m.type === 'global' || m.type === 'announcement') {
+      if (!(currentTab.type === 'global')) return;
+    } else if (m.type === 'dm') {
+      const other = (m.username === username) ? m.to : m.username;
+      if (!(currentTab.type === 'dm' && currentTab.to === other)) return;
+    } else if (m.type === 'group') {
+      const id = Array.isArray(m.to) ? m.to.join(',') : m.to;
+      if (!(currentTab.type === 'group' && currentTab.to === id)) return;
+    }
+
+    const el = document.createElement('div');
+    el.className = 'msg' + (m.type === 'announcement' ? ' announcement' : '');
+
+    let meta = `<div class="meta"><strong>${esc(m.username)}</strong>`;
+    if (m.type === 'dm') meta += ` <span>(DM ${m.username === username ? 'to ' + esc(m.to) : 'from ' + esc(m.username)})</span>`;
+    if (m.type === 'group') meta += ` <span>(Group: ${esc((m.to || []).join(','))})</span>`;
+    if (m.type === 'announcement') meta += ` <span>(Announcement)</span>`;
+    meta += ` <span style="float:right;opacity:.6;font-size:12px">${new Date(m.time).toLocaleString()}</span></div>`;
+
+    el.innerHTML = `${meta}<div class="text">${esc(m.content || m.text || '')}</div>`;
+    messagesEl.appendChild(el);
+
+    // auto-scroll only if near bottom
+    const isAtBottom = messagesEl.scrollHeight - messagesEl.scrollTop - messagesEl.clientHeight < 50;
+    if (isAtBottom) messagesEl.scrollTop = messagesEl.scrollHeight;
+  }
+
+  socket.on('history', msgs => {
+    msgs.forEach(m => {
+      if (m.type === 'dm') addTab('dm', m.username === username ? m.to : m.username, m.username === username ? m.to : m.username);
+      if (m.type === 'group') {
+        const id = Array.isArray(m.to) ? m.to.join(',') : m.to;
+        addTab('group', id, id);
+      }
+    });
+    msgs.forEach(renderMessage);
+  });
+
+  socket.on('message', m => {
+    if (m.type === 'dm') addTab('dm', m.username === username ? m.to : m.username, m.username === username ? m.to : m.username);
+    if (m.type === 'group') {
+      const id = Array.isArray(m.to) ? m.to.join(',') : m.to;
+      addTab('group', id, id);
+    }
+    renderMessage(m);
+  });
+
+  sendBtn.onclick = () => {
+    const text = input.value.trim();
+    if (!text) return;
+    const payload = { type: currentTab.type, content: text };
+    if (currentTab.type === 'dm') payload.to = currentTab.to;
+    if (currentTab.type === 'group') payload.to = currentTab.to.split(',').map(u => u.trim()).filter(Boolean);
+    socket.emit('send', payload);
+    input.value = '';
+  };
+
+  document.getElementById('create-group').onclick = () => {
+    const s = document.getElementById('new-group').value.trim();
+    if (!s) return;
+    const arr = s.split(',').map(x => x.trim()).filter(Boolean);
+    if (!arr.includes(username)) arr.push(username);
+    const id = arr.join(',');
+    addTab('group', id, id);
+    document.querySelectorAll('.tab').forEach(x => x.classList.remove('active'));
+    const btn = document.querySelector(`.tab[data-type="group"][data-to="${id}"]`);
+    if (btn) btn.classList.add('active');
+    currentTab = { type: 'group', to: id };
+    messagesEl.innerHTML = '';
+    document.getElementById('new-group').value = '';
+  };
+
+  document.getElementById('send-announcement').onclick = async () => {
+    const t = document.getElementById('announcement-input').value.trim();
+    if (!t) return;
+    await fetch('/api/announce', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ content: t })});
+    document.getElementById('announcement-input').value = '';
+  };
+
+  // Admin overlay logic (unchanged)
+  const overlay = document.getElementById('adminOverlay');
+  const isHostLike = (role==='host' || role==='admin');
+  if(isHostLike) overlay.style.display='block';
+  overlay.style.display = 'none';
+  function toggleOverlay(){ overlay.style.display = overlay.style.display==='none'? 'block' : 'none'; overlay.focus(); }
+  document.addEventListener('keydown', (e)=> { if(e.key==='\\') toggleOverlay(); });
+})();
 </script>
+</body>
+</html>
