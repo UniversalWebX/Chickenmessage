@@ -1,0 +1,93 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>ChickenMessenger — Host</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <div class="window">
+    <div class="titlebar">
+      <div class="title">Host Panel</div>
+      <div><a href="/chat.html" class="btn">Back to Chat</a></div>
+    </div>
+    <div class="content" style="padding:20px;">
+      <div style="display:flex; gap:12px; width:100%;">
+        <div style="flex:1;">
+          <h3>Users</h3>
+          <pre id="users" style="max-height:320px; overflow:auto; background:rgba(0,0,0,0.2); padding:8px; border-radius:8px;"></pre>
+        </div>
+        <div style="width:360px;">
+          <h3>Actions</h3>
+          <div style="display:flex; gap:8px; margin-bottom:8px;">
+            <input id="banUser" placeholder="username" />
+            <input id="banMin" placeholder="mins (optional)" style="width:90px;" />
+          </div>
+          <div style="display:flex; gap:8px; margin-bottom:8px;">
+            <button id="banBtn" class="btn">Ban</button>
+            <button id="unbanBtn" class="btn">Unban</button>
+          </div>
+
+          <div style="display:flex; gap:8px; margin-bottom:8px;">
+            <input id="ipField" placeholder="ip" />
+            <input id="ipMin" placeholder="mins" style="width:90px;" />
+          </div>
+          <div style="display:flex; gap:8px;">
+            <button id="ipBanBtn" class="btn">IP Ban</button>
+            <button id="ipUnbanBtn" class="btn">IP Unban</button>
+          </div>
+
+          <div style="margin-top:12px;">
+            <input id="adminUser" placeholder="username" />
+            <div style="display:flex; gap:8px; margin-top:8px;">
+              <button id="giveAdminBtn" class="btn">Give Admin</button>
+              <button id="removeAdminBtn" class="btn">Remove Admin</button>
+            </div>
+          </div>
+
+          <div style="margin-top:12px;">
+            <button id="lockBtn" class="btn">Lock Site</button>
+            <button id="unlockBtn" class="btn">Unlock</button>
+          </div>
+
+          <div style="margin-top:12px;">
+            <input id="announceText" placeholder="Announcement..." />
+            <button id="announceBtn" class="btn">Send Announcement</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+<script>
+async function api(path, body){ return fetch(path, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body)}).then(r=>r.json()); }
+async function getState(){ return fetch('/api/state').then(r=>r.json()).catch(()=>({ok:false})); }
+
+async function refresh(){
+  const s = await fetch('/api/state').then(r=>r.json()).catch(()=>({ok:false}));
+  if(!s.ok){ document.getElementById('users').textContent = 'forbidden'; return; }
+  const users = s.users;
+  document.getElementById('users').textContent = Object.keys(users).map(k=>k + ' — ' + (users[k].role||'user')).join('\\n');
+}
+
+document.getElementById('banBtn').onclick = async ()=>{
+  const u = document.getElementById('banUser').value.trim(); const m=parseInt(document.getElementById('banMin').value)||null;
+  await api('/api/ban',{ username:u, durationMinutes:m }); refresh();
+};
+document.getElementById('unbanBtn').onclick = async ()=>{ const u=document.getElementById('banUser').value.trim(); await api('/api/unban',{ username:u }); refresh(); };
+
+document.getElementById('ipBanBtn').onclick = async ()=>{ const ip=document.getElementById('ipField').value.trim(); const m=parseInt(document.getElementById('ipMin').value)||null; await api('/api/ipban',{ ip, durationMinutes:m }); refresh(); };
+document.getElementById('ipUnbanBtn').onclick = async ()=>{ const ip=document.getElementById('ipField').value.trim(); await api('/api/unipban',{ ip }); refresh(); };
+
+document.getElementById('giveAdminBtn').onclick = async ()=>{ const u=document.getElementById('adminUser').value.trim(); await api('/api/giveadmin',{ username:u }); refresh(); };
+document.getElementById('removeAdminBtn').onclick = async ()=>{ const u=document.getElementById('adminUser').value.trim(); await api('/api/removeadmin',{ username:u }); refresh(); };
+
+document.getElementById('lockBtn').onclick = async ()=>{ await api('/api/lock'); refresh(); };
+document.getElementById('unlockBtn').onclick = async ()=>{ await api('/api/unlock'); refresh(); };
+
+document.getElementById('announceBtn').onclick = async ()=>{ const t=document.getElementById('announceText').value.trim(); await api('/api/announce',{ content:t }); document.getElementById('announceText').value=''; };
+
+refresh();
+</script>
+</body>
+</html>
