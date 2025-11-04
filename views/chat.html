@@ -14,16 +14,16 @@
     </div>
     <div class="content">
       <div class="sidebar" id="sidebar">
-        <button class="tab active" data-type="global" data-to="">Global</button>
+        <button id="globalBtn" class="tab active" data-type="global" data-to="">Global</button>
         <div id="dm-tabs"></div>
         <div id="group-tabs"></div>
         <div style="margin-top:8px;">
-          <input id="new-group" placeholder="Create group: user1,user2..." style="width:100%; padding:8px; border-radius:8px; border:none; background:rgba(255,255,255,0.03); color:inherit;" />
-          <button id="create-group" class="btn" style="width:100%; margin-top:6px;">Create Group</button>
+          <input id="new-group" placeholder="Create group: user1,user2..." />
+          <button id="create-group" class="btn">Create Group</button>
         </div>
         <div id="announcement-area" style="margin-top:10px; display:none;">
-          <input id="announcement-input" placeholder="Announcement..." style="width:100%; padding:8px; border-radius:8px; border:none; background:rgba(255,255,255,0.03); color:inherit;" />
-          <button id="send-announcement" class="btn" style="width:100%; margin-top:6px;">Send Announcement</button>
+          <input id="announcement-input" placeholder="Announcement..." />
+          <button id="send-announcement" class="btn">Send Announcement</button>
         </div>
       </div>
       <div class="chat-area">
@@ -36,7 +36,48 @@
     </div>
   </div>
 
-  <div id="adminOverlay" class="admin-overlay" tabindex="0">...</div>
+  <!-- toast container -->
+  <div class="toast-wrap" id="toastWrap"></div>
+
+  <!-- Admin overlay -->
+  <div id="adminOverlay" class="admin-overlay" tabindex="0">
+    <h3 style="margin-top:0;">Admin Panel</h3>
+    <div class="row">
+      <input id="kickUser" placeholder="Kick user..." />
+      <button class="btn" id="btnKick">Kick</button>
+    </div>
+    <div class="row">
+      <input id="banTarget" placeholder="Ban username..." />
+      <input id="banMin" placeholder="mins (optional)" style="width:100px;" />
+    </div>
+    <div class="row">
+      <button class="btn" id="btnBan">Ban</button>
+      <button class="btn" id="btnUnban">Unban</button>
+    </div>
+    <div class="row">
+      <input id="ipField" placeholder="IP to ban/unban" />
+      <input id="ipMin" placeholder="mins (optional)" style="width:100px;" />
+    </div>
+    <div class="row">
+      <button class="btn" id="ipBanBtn">IP Ban</button>
+      <button class="btn" id="ipUnbanBtn">IP Unban</button>
+    </div>
+    <div class="row">
+      <input id="grantUser" placeholder="Username for admin" />
+      <button class="btn" id="grantBtn">Give Admin</button>
+      <button class="btn" id="removeBtn">Remove Admin</button>
+    </div>
+    <div class="row">
+      <button class="btn" id="btnClear">Clear Global</button>
+      <button class="btn" id="btnLock">Lock Site</button>
+      <button class="btn" id="btnUnlock">Unlock Site</button>
+    </div>
+    <div style="margin-top:8px;">
+      <input id="announceText" placeholder="Announcement..." />
+      <button id="announceSend" class="btn">Send</button>
+    </div>
+    <div style="margin-top:8px;"><small style="opacity:0.7">Press <kbd>\</kbd> to toggle. Drag to move.</small></div>
+  </div>
 
 <script>
 (async () => {
@@ -45,6 +86,7 @@
   if (!me.ok) return window.location = '/';
   const username = me.username;
   const role = me.role || 'user';
+
   if (role === 'host' || role === 'admin') document.getElementById('announcement-area').style.display = 'block';
 
   const socket = io();
@@ -55,11 +97,11 @@
   const sendBtn = document.getElementById('send');
   const dmTabs = document.getElementById('dm-tabs');
   const groupTabs = document.getElementById('group-tabs');
+  const toastWrap = document.getElementById('toastWrap');
+
   let currentTab = { type: 'global', to: '' };
 
-  function esc(s) {
-    return (s || '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-  }
+  function esc(s) { return (s || '').replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c])); }
 
   function addTab(type, to, label) {
     const container = (type === 'dm') ? dmTabs : groupTabs;
@@ -71,16 +113,30 @@
     btn.textContent = label;
     btn.onclick = () => {
       document.querySelectorAll('.tab').forEach(x => x.classList.remove('active'));
+      document.querySelector('#globalBtn').classList.remove('active');
       btn.classList.add('active');
       currentTab = { type, to };
       messagesEl.innerHTML = '';
+      if (type === 'global') socket.emit('requestGlobal');
+      else if (type === 'dm' || type === 'group') {
+        // server already pushed history; client renders message events when they arrive
+      }
     };
     container.appendChild(btn);
   }
 
+  // Ensure Global is clickable and functions like other tabs
+  document.getElementById('globalBtn').onclick = () => {
+    document.querySelectorAll('.tab').forEach(x => x.classList.remove('active'));
+    document.getElementById('globalBtn').classList.add('active');
+    currentTab = { type: 'global', to: '' };
+    messagesEl.innerHTML = '';
+    socket.emit('requestGlobal');
+  };
+
   function renderMessage(m) {
-    if (m.type === 'global' || m.type === 'announcement') {
-      if (!(currentTab.type === 'global')) return;
+    if (m.type === 'global') {
+      if (currentTab.type !== 'global') return;
     } else if (m.type === 'dm') {
       const other = (m.username === username) ? m.to : m.username;
       if (!(currentTab.type === 'dm' && currentTab.to === other)) return;
@@ -91,17 +147,13 @@
 
     const el = document.createElement('div');
     el.className = 'msg' + (m.type === 'announcement' ? ' announcement' : '');
-
     let meta = `<div class="meta"><strong>${esc(m.username)}</strong>`;
     if (m.type === 'dm') meta += ` <span>(DM ${m.username === username ? 'to ' + esc(m.to) : 'from ' + esc(m.username)})</span>`;
     if (m.type === 'group') meta += ` <span>(Group: ${esc((m.to || []).join(','))})</span>`;
-    if (m.type === 'announcement') meta += ` <span>(Announcement)</span>`;
     meta += ` <span style="float:right;opacity:.6;font-size:12px">${new Date(m.time).toLocaleString()}</span></div>`;
-
     el.innerHTML = `${meta}<div class="text">${esc(m.content || m.text || '')}</div>`;
     messagesEl.appendChild(el);
 
-    // auto-scroll only if near bottom
     const isAtBottom = messagesEl.scrollHeight - messagesEl.scrollTop - messagesEl.clientHeight < 50;
     if (isAtBottom) messagesEl.scrollTop = messagesEl.scrollHeight;
   }
@@ -109,23 +161,41 @@
   socket.on('history', msgs => {
     msgs.forEach(m => {
       if (m.type === 'dm') addTab('dm', m.username === username ? m.to : m.username, m.username === username ? m.to : m.username);
-      if (m.type === 'group') {
-        const id = Array.isArray(m.to) ? m.to.join(',') : m.to;
-        addTab('group', id, id);
-      }
+      if (m.type === 'group') addTab('group', Array.isArray(m.to) ? m.to.join(',') : m.to, Array.isArray(m.to) ? m.to.join(',') : m.to);
     });
     msgs.forEach(renderMessage);
   });
 
   socket.on('message', m => {
     if (m.type === 'dm') addTab('dm', m.username === username ? m.to : m.username, m.username === username ? m.to : m.username);
-    if (m.type === 'group') {
-      const id = Array.isArray(m.to) ? m.to.join(',') : m.to;
-      addTab('group', id, id);
-    }
+    if (m.type === 'group') addTab('group', Array.isArray(m.to) ? m.to.join(',') : m.to, Array.isArray(m.to) ? m.to.join(',') : m.to);
     renderMessage(m);
   });
 
+  socket.on('globalHistory', msgs => {
+    messagesEl.innerHTML = '';
+    msgs.forEach(renderMessage);
+  });
+
+  socket.on('clearGlobal', () => {
+    if (currentTab.type === 'global') messagesEl.innerHTML = '';
+    showToast('Global chat cleared.');
+  });
+
+  // Announcements -> toasts (top-right stacking)
+  socket.on('announcement', data => showToast(data.content));
+
+  function showToast(msg) {
+    const wrap = document.getElementById('toastWrap');
+    const box = document.createElement('div');
+    box.className = 'toast';
+    box.textContent = msg;
+    wrap.appendChild(box);
+    setTimeout(() => box.style.opacity = '0', 5000);
+    setTimeout(() => box.remove(), 5600);
+  }
+
+  // send messages
   sendBtn.onclick = () => {
     const text = input.value.trim();
     if (!text) return;
@@ -136,6 +206,7 @@
     input.value = '';
   };
 
+  // create group
   document.getElementById('create-group').onclick = () => {
     const s = document.getElementById('new-group').value.trim();
     if (!s) return;
@@ -151,20 +222,109 @@
     document.getElementById('new-group').value = '';
   };
 
+  // announcement input (admin/host)
   document.getElementById('send-announcement').onclick = async () => {
     const t = document.getElementById('announcement-input').value.trim();
     if (!t) return;
-    await fetch('/api/announce', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ content: t })});
+    await fetch('/api/announce', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ content: t }) });
     document.getElementById('announcement-input').value = '';
   };
 
-  // Admin overlay logic (unchanged)
+  // ---------------- Admin overlay (drag + toggle) ----------------
   const overlay = document.getElementById('adminOverlay');
-  const isHostLike = (role==='host' || role==='admin');
-  if(isHostLike) overlay.style.display='block';
-  overlay.style.display = 'none';
-  function toggleOverlay(){ overlay.style.display = overlay.style.display==='none'? 'block' : 'none'; overlay.focus(); }
-  document.addEventListener('keydown', (e)=> { if(e.key==='\\') toggleOverlay(); });
+  const isHostLike = (role === 'host' || role === 'admin');
+  if (!isHostLike) overlay.style.display = 'none';
+
+  function toggleOverlay() { overlay.style.display = overlay.style.display === 'none' ? 'block' : 'none'; overlay.focus(); }
+  document.addEventListener('keydown', (e) => { if (e.key === '\\' || e.key === '\\\\') toggleOverlay(); });
+
+  // draggable
+  let dragging = false, offsetX = 0, offsetY = 0;
+  overlay.addEventListener('mousedown', (e) => {
+    if (e.target.tagName.toLowerCase() === 'input' || e.target.tagName.toLowerCase() === 'button') return;
+    dragging = true;
+    const rect = overlay.getBoundingClientRect();
+    offsetX = e.clientX - rect.left;
+    offsetY = e.clientY - rect.top;
+    overlay.style.transition = 'none';
+  });
+  document.addEventListener('mouseup', () => dragging = false);
+  document.addEventListener('mousemove', (e) => {
+    if (!dragging) return;
+    overlay.style.left = (e.clientX - offsetX) + 'px';
+    overlay.style.top = (e.clientY - offsetY) + 'px';
+    overlay.style.position = 'fixed';
+  });
+
+  // admin actions (HTTP)
+  const post = async (url, body) => fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }).then(r => r.json());
+
+  document.getElementById('btnKick').onclick = async () => {
+    const u = document.getElementById('kickUser').value.trim();
+    if (!u) return alert('Type username to kick.');
+    // ask server to kick via API which emits serverKick
+    await post('/api/kick', { user: u }).catch(() => {});
+    // also request server-side socket kick (server listens for serverKick/ serverKickRequest)
+    socket.emit('serverKickRequest', { user: u });
+    alert('Kick request sent.');
+  };
+
+  document.getElementById('btnClear').onclick = async () => {
+    socket.emit('adminClearGlobal');
+  };
+
+  document.getElementById('btnBan').onclick = async () => {
+    const u = document.getElementById('banTarget').value.trim();
+    const mins = parseInt(document.getElementById('banMin').value) || null;
+    if (!u) return alert('Username required');
+    await post('/api/ban', { username: u, durationMinutes: mins });
+    alert('Banned (if exists).');
+  };
+  document.getElementById('btnUnban').onclick = async () => {
+    const u = document.getElementById('banTarget').value.trim();
+    if (!u) return alert('Username required');
+    await post('/api/unban', { username: u });
+    alert('Unbanned.');
+  };
+
+  document.getElementById('ipBanBtn').onclick = async () => {
+    const ip = document.getElementById('ipField').value.trim();
+    const mins = parseInt(document.getElementById('ipMin').value) || null;
+    if (!ip) return alert('IP required');
+    await post('/api/ipban', { ip, durationMinutes: mins });
+    alert('IP banned.');
+  };
+  document.getElementById('ipUnbanBtn').onclick = async () => {
+    const ip = document.getElementById('ipField').value.trim();
+    if (!ip) return alert('IP required');
+    await post('/api/unipban', { ip });
+    alert('IP unbanned.');
+  };
+
+  document.getElementById('grantBtn').onclick = async () => {
+    const u = document.getElementById('grantUser').value.trim();
+    if (!u) return alert('Username required');
+    await post('/api/giveadmin', { username: u });
+    alert('Given admin.');
+  };
+  document.getElementById('removeBtn').onclick = async () => {
+    const u = document.getElementById('grantUser').value.trim();
+    if (!u) return alert('Username required');
+    await post('/api/removeadmin', { username: u });
+    alert('Removed admin.');
+  };
+
+  document.getElementById('btnLock').onclick = async () => { await post('/api/lock', {}); alert('Site locked.'); };
+  document.getElementById('btnUnlock').onclick = async () => { await post('/api/unlock', {}); alert('Site unlocked.'); };
+
+  document.getElementById('announceSend').onclick = async () => {
+    const t = document.getElementById('announceText').value.trim();
+    if (!t) return alert('Type announcement');
+    await post('/api/announce', { content: t });
+    document.getElementById('announceText').value = '';
+    alert('Announcement sent.');
+  };
+
 })();
 </script>
 </body>
